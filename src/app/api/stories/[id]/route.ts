@@ -3,6 +3,7 @@ import { unlink } from 'fs/promises';
 import path from 'path';
 import db from '@/lib/db';
 import { getCurrentUserId } from '@/lib/auth';
+import { uploadsDir } from '@/lib/paths';
 
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -16,7 +17,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
 
     const filename = story.file_path.split('/').pop();
     if (filename) {
-      try { await unlink(path.join(process.cwd(), 'uploads', filename)); } catch {}
+      try { await unlink(path.join(uploadsDir, filename)); } catch {}
     }
 
     db.prepare('DELETE FROM story_views WHERE story_id = ?').run(id);

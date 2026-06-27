@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import db from '@/lib/db';
 import { getCurrentUserId } from '@/lib/auth';
+import { uploadsDir } from '@/lib/paths';
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -57,8 +58,11 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     const video = db.prepare('SELECT * FROM videos WHERE id = ? AND user_id = ?').get(id, userId) as any;
     if (!video) return NextResponse.json({ error: 'Video not found or not yours' }, { status: 404 });
 
-    const filePath = path.join(process.cwd(), video.file_path);
-    try { fs.unlinkSync(filePath); } catch {}
+    const filename = (video.file_path || '').split('/').pop();
+    if (filename) {
+      const filePath = path.join(uploadsDir, filename);
+      try { fs.unlinkSync(filePath); } catch {}
+    }
 
     db.transaction(() => {
       db.prepare('DELETE FROM likes WHERE video_id = ?').run(id);

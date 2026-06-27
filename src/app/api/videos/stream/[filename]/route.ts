@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import { readFile } from 'fs/promises';
 import path from 'path';
+import { uploadsDir } from '@/lib/paths';
 
 export async function GET(req: Request, { params }: { params: Promise<{ filename: string }> }) {
   try {
     const { filename } = await params;
-    const filePath = path.join(process.cwd(), 'uploads', filename);
+    const filePath = path.join(uploadsDir, filename);
     const buffer = await readFile(filePath);
 
     const ext = filename.split('.').pop()?.toLowerCase();

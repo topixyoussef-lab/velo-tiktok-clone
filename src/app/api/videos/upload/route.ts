@@ -4,6 +4,7 @@ import { writeFile, mkdir, appendFile } from 'fs/promises';
 import path from 'path';
 import db from '@/lib/db';
 import { getCurrentUserId } from '@/lib/auth';
+import { uploadsDir } from '@/lib/paths';
 
 export const maxDuration = 120;
 
@@ -24,8 +25,6 @@ export async function POST(req: Request) {
 
     const ext = file.name.split('.').pop() || 'mp4';
     const fileName = `${uuidv4()}.${ext}`;
-    const uploadsDir = path.join(process.cwd(), 'uploads');
-
     await mkdir(uploadsDir, { recursive: true });
 
     const bytes = await file.arrayBuffer();

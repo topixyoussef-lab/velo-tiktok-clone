@@ -1,7 +1,8 @@
 import Database from 'better-sqlite3';
 import path from 'path';
+import { dataDir } from './paths';
 
-const dbPath = path.join(process.cwd(), 'data.db');
+const dbPath = path.join(dataDir, 'data.db');
 const db = new Database(dbPath);
 
 db.pragma('journal_mode = WAL');
