@@ -8,11 +8,11 @@ export async function POST(req: Request) {
     const userId = await getCurrentUserId();
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { to_user_id, video_id, amount, tx_hash } = await req.json();
+    const { to_user_id, video_id, amount, platform_amount, creator_amount, tx_hash } = await req.json();
     if (!to_user_id || !amount) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
 
     const id = uuidv4();
-    db.prepare('INSERT INTO tips (id, from_user_id, to_user_id, video_id, amount, tx_hash) VALUES (?, ?, ?, ?, ?, ?)').run(id, userId, to_user_id, video_id || null, amount, tx_hash || '');
+    db.prepare('INSERT INTO tips (id, from_user_id, to_user_id, video_id, amount, platform_amount, creator_amount, tx_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(id, userId, to_user_id, video_id || null, amount, platform_amount || '0', creator_amount || '0', tx_hash || '');
 
     return NextResponse.json({ tip: { id, amount } });
   } catch {

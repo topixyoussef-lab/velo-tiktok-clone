@@ -8,7 +8,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ userId: 
     const currentUserId = await getCurrentUserId();
 
     const videos = db.prepare(`
-      SELECT v.*, u.username, u.display_name, u.avatar
+      SELECT v.*, u.username, u.display_name, u.avatar, u.wallet_address
       FROM videos v
       JOIN users u ON v.user_id = u.id
       WHERE v.user_id = ?

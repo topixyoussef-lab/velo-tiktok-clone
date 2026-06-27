@@ -194,6 +194,8 @@ db.exec(`
     to_user_id TEXT NOT NULL,
     video_id TEXT,
     amount TEXT NOT NULL,
+    platform_amount TEXT DEFAULT '0',
+    creator_amount TEXT DEFAULT '0',
     tx_hash TEXT DEFAULT '',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (from_user_id) REFERENCES users(id),

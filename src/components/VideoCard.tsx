@@ -189,10 +189,30 @@ export default function VideoCard({ video }: Props) {
     if (tipping || !isConnected) return;
     setTipping(true);
     try {
-      const txHash = await sendTransaction(wagmiConfig, {
-        to: PLATFORM_WALLET,
-        value: parseEther(tipAmount),
-      });
+      const total = parseEther(tipAmount);
+      const half = total / BigInt(2);
+      const ownerWallet = (video as any).wallet_address;
+      let txHash: string;
+
+      if (ownerWallet) {
+        const tx1 = await sendTransaction(wagmiConfig, {
+          to: ownerWallet as `0x${string}`,
+          value: half,
+        });
+        const tx2 = await sendTransaction(wagmiConfig, {
+          to: PLATFORM_WALLET,
+          value: half,
+        });
+        txHash = `${tx1},${tx2}`;
+      } else {
+        txHash = await sendTransaction(wagmiConfig, {
+          to: PLATFORM_WALLET,
+          value: total,
+        });
+      }
+
+      const platformAmount = ownerWallet ? (Number(tipAmount) / 2).toString() : tipAmount;
+      const creatorAmount = ownerWallet ? (Number(tipAmount) / 2).toString() : '0';
 
       await fetch('/api/tips', {
         method: 'POST',
@@ -201,6 +221,8 @@ export default function VideoCard({ video }: Props) {
           to_user_id: video.user_id,
           video_id: video.id,
           amount: tipAmount,
+          platform_amount: platformAmount,
+          creator_amount: creatorAmount,
           tx_hash: txHash,
         }),
       }).catch(() => {});
