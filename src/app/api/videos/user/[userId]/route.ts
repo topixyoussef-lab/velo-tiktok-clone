@@ -7,23 +7,23 @@ export async function GET(req: Request, { params }: { params: Promise<{ userId: 
     const { userId } = await params;
     const currentUserId = await getCurrentUserId();
 
-    const videos = db.prepare(`
+    const videos = (await db.execute({ sql: `
       SELECT v.*, u.username, u.display_name, u.avatar, u.wallet_address
       FROM videos v
       JOIN users u ON v.user_id = u.id
       WHERE v.user_id = ?
       ORDER BY v.created_at DESC
-    `).all(userId) as any[];
+    `, args: [userId] })).rows as any[];
 
-    const enriched = videos.map(v => ({
+    const enriched = await Promise.all(videos.map(async (v) => ({
       ...v,
       is_liked: currentUserId
-        ? !!db.prepare('SELECT id FROM likes WHERE user_id = ? AND video_id = ?').get(currentUserId, v.id)
+        ? !!(await db.execute({ sql: 'SELECT id FROM likes WHERE user_id = ? AND video_id = ?', args: [currentUserId, v.id] })).rows[0]
         : false,
       is_saved: currentUserId
-        ? !!db.prepare('SELECT id FROM saved_videos WHERE user_id = ? AND video_id = ?').get(currentUserId, v.id)
+        ? !!(await db.execute({ sql: 'SELECT id FROM saved_videos WHERE user_id = ? AND video_id = ?', args: [currentUserId, v.id] })).rows[0]
         : false,
-    }));
+    })));
 
     return NextResponse.json({ videos: enriched });
   } catch {

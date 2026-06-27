@@ -10,11 +10,11 @@ export async function POST(req: Request) {
     const { video_id, wallet_address } = await req.json();
     if (!video_id || !wallet_address) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
 
-    const video = db.prepare('SELECT * FROM videos WHERE id = ? AND is_nft = 1').get(video_id) as any;
+    const video = (await db.execute({ sql: 'SELECT * FROM videos WHERE id = ? AND is_nft = 1', args: [video_id] })).rows[0] as any;
     if (!video) return NextResponse.json({ error: 'NFT not found' }, { status: 404 });
     if (video.user_id === userId) return NextResponse.json({ error: 'You own this video already' }, { status: 400 });
 
-    db.prepare('UPDATE videos SET nft_owner = ? WHERE id = ?').run(wallet_address, video_id);
+    await db.execute({ sql: 'UPDATE videos SET nft_owner = ? WHERE id = ?', args: [wallet_address, video_id] });
 
     return NextResponse.json({ success: true, video_id, new_owner: wallet_address });
   } catch {

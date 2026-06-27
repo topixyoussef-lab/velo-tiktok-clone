@@ -9,7 +9,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const conversations = db.prepare(`
+    const conversations = (await db.execute({ sql: `
       WITH latest AS (
         SELECT
           CASE WHEN m.sender_id = ? THEN m.receiver_id ELSE m.sender_id END AS other_user_id,
@@ -33,7 +33,7 @@ export async function GET() {
       JOIN users u ON u.id = l.other_user_id
       WHERE l.rn = 1
       ORDER BY l.last_message_at DESC
-    `).all(userId, userId, userId, userId, userId) as any[];
+    `, args: [userId, userId, userId, userId, userId] })).rows as any[];
 
     return NextResponse.json({ conversations });
   } catch {

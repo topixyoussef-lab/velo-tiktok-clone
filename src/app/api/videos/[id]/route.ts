@@ -1,21 +1,19 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
 import db from '@/lib/db';
 import { getCurrentUserId } from '@/lib/auth';
-import { uploadsDir } from '@/lib/paths';
+import { deleteFromCloudinary, getPublicIdFromUrl } from '@/lib/upload';
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const currentUserId = await getCurrentUserId();
 
-    const video = db.prepare(`
+    const video = (await db.execute({ sql: `
       SELECT v.*, u.username, u.display_name, u.avatar
       FROM videos v
       JOIN users u ON v.user_id = u.id
       WHERE v.id = ?
-    `).get(id) as any;
+    `, args: [id] })).rows[0] as any;
 
     if (!video) {
       return NextResponse.json({ error: 'Video not found' }, { status: 404 });
@@ -23,25 +21,25 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
     video.is_own = currentUserId === video.user_id;
     video.is_liked = currentUserId
-      ? !!db.prepare('SELECT id FROM likes WHERE user_id = ? AND video_id = ?').get(currentUserId, video.id)
+      ? !!(await db.execute({ sql: 'SELECT id FROM likes WHERE user_id = ? AND video_id = ?', args: [currentUserId, video.id] })).rows[0]
       : false;
     video.is_saved = currentUserId
-      ? !!db.prepare('SELECT id FROM saved_videos WHERE user_id = ? AND video_id = ?').get(currentUserId, video.id)
+      ? !!(await db.execute({ sql: 'SELECT id FROM saved_videos WHERE user_id = ? AND video_id = ?', args: [currentUserId, video.id] })).rows[0]
       : false;
     video.is_following = currentUserId
-      ? !!db.prepare('SELECT id FROM follows WHERE follower_id = ? AND following_id = ?').get(currentUserId, video.user_id)
+      ? !!(await db.execute({ sql: 'SELECT id FROM follows WHERE follower_id = ? AND following_id = ?', args: [currentUserId, video.user_id] })).rows[0]
       : false;
     video.is_followed_by = currentUserId
-      ? !!db.prepare('SELECT id FROM follows WHERE follower_id = ? AND following_id = ?').get(video.user_id, currentUserId)
+      ? !!(await db.execute({ sql: 'SELECT id FROM follows WHERE follower_id = ? AND following_id = ?', args: [video.user_id, currentUserId] })).rows[0]
       : false;
 
-    const comments = db.prepare(`
+    const comments = (await db.execute({ sql: `
       SELECT c.*, u.username, u.display_name, u.avatar
       FROM comments c
       JOIN users u ON c.user_id = u.id
       WHERE c.video_id = ?
       ORDER BY c.created_at DESC
-    `).all(id);
+    `, args: [id] })).rows;
 
     return NextResponse.json({ video, comments });
   } catch {
@@ -55,22 +53,19 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     const userId = await getCurrentUserId();
     if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const video = db.prepare('SELECT * FROM videos WHERE id = ? AND user_id = ?').get(id, userId) as any;
+    const video = (await db.execute({ sql: 'SELECT * FROM videos WHERE id = ? AND user_id = ?', args: [id, userId] })).rows[0] as any;
     if (!video) return NextResponse.json({ error: 'Video not found or not yours' }, { status: 404 });
 
-    const filename = (video.file_path || '').split('/').pop();
-    if (filename) {
-      const filePath = path.join(uploadsDir, filename);
-      try { fs.unlinkSync(filePath); } catch {}
-    }
+    try {
+      const publicId = getPublicIdFromUrl(video.file_path || '');
+      if (publicId) await deleteFromCloudinary(publicId);
+    } catch {}
 
-    db.transaction(() => {
-      db.prepare('DELETE FROM likes WHERE video_id = ?').run(id);
-      db.prepare('DELETE FROM comments WHERE video_id = ?').run(id);
-      db.prepare('DELETE FROM saved_videos WHERE video_id = ?').run(id);
-      db.prepare('DELETE FROM notifications WHERE video_id = ?').run(id);
-      db.prepare('DELETE FROM videos WHERE id = ?').run(id);
-    })();
+    await db.execute({ sql: 'DELETE FROM likes WHERE video_id = ?', args: [id] });
+    await db.execute({ sql: 'DELETE FROM comments WHERE video_id = ?', args: [id] });
+    await db.execute({ sql: 'DELETE FROM saved_videos WHERE video_id = ?', args: [id] });
+    await db.execute({ sql: 'DELETE FROM notifications WHERE video_id = ?', args: [id] });
+    await db.execute({ sql: 'DELETE FROM videos WHERE id = ?', args: [id] });
 
     return NextResponse.json({ success: true });
   } catch {

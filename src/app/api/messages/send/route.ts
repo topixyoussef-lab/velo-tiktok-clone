@@ -16,13 +16,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Receiver and text required' }, { status: 400 });
     }
 
-    const receiver = db.prepare('SELECT id FROM users WHERE id = ?').get(receiver_id);
+    const receiver = (await db.execute({ sql: 'SELECT id FROM users WHERE id = ?', args: [receiver_id] })).rows[0];
     if (!receiver) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
     const id = uuidv4();
-    db.prepare('INSERT INTO messages (id, sender_id, receiver_id, text) VALUES (?, ?, ?, ?)').run(id, userId, receiver_id, text);
+    await db.execute({ sql: 'INSERT INTO messages (id, sender_id, receiver_id, text) VALUES (?, ?, ?, ?)', args: [id, userId, receiver_id, text] });
 
     return NextResponse.json({ message: { id, sender_id: userId, receiver_id, text, created_at: new Date().toISOString() } }, { status: 201 });
   } catch {

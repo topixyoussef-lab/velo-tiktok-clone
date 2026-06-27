@@ -8,16 +8,16 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     if (!userId) return NextResponse.json({ viewers: [] });
 
     const { id } = await params;
-    const story = db.prepare('SELECT * FROM stories WHERE id = ?').get(id) as { user_id: string } | undefined;
+    const story = (await db.execute({ sql: 'SELECT * FROM stories WHERE id = ?', args: [id] })).rows[0] as any;
     if (!story) return NextResponse.json({ viewers: [] });
 
-    const viewers = db.prepare(`
+    const viewers = (await db.execute({ sql: `
       SELECT sv.user_id, u.username, u.display_name, u.avatar, sv.created_at
       FROM story_views sv
       JOIN users u ON sv.user_id = u.id
       WHERE sv.story_id = ?
       ORDER BY sv.created_at DESC
-    `).all(id);
+    `, args: [id] })).rows;
 
     return NextResponse.json({ viewers });
   } catch {

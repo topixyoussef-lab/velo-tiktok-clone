@@ -11,17 +11,17 @@ export async function GET(req: Request, { params }: { params: Promise<{ userId: 
 
     const { userId } = await params;
 
-    db.prepare('UPDATE messages SET read = 1 WHERE sender_id = ? AND receiver_id = ?').run(userId, currentUserId);
+    await db.execute({ sql: 'UPDATE messages SET read = 1 WHERE sender_id = ? AND receiver_id = ?', args: [userId, currentUserId] });
 
-    const messages = db.prepare(`
+    const messages = (await db.execute({ sql: `
       SELECT m.*, u_sender.username AS sender_username, u_sender.display_name AS sender_display_name
       FROM messages m
       JOIN users u_sender ON m.sender_id = u_sender.id
       WHERE (m.sender_id = ? AND m.receiver_id = ?) OR (m.sender_id = ? AND m.receiver_id = ?)
       ORDER BY m.created_at ASC
-    `).all(currentUserId, userId, userId, currentUserId) as any[];
+    `, args: [currentUserId, userId, userId, currentUserId] })).rows as any[];
 
-    const otherUser = db.prepare('SELECT id, username, display_name FROM users WHERE id = ?').get(userId) as any;
+    const otherUser = (await db.execute({ sql: 'SELECT id, username, display_name FROM users WHERE id = ?', args: [userId] })).rows[0] as any;
 
     return NextResponse.json({ messages, other_user: otherUser });
   } catch {

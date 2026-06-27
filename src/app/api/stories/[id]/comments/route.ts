@@ -6,13 +6,13 @@ import { getCurrentUserId } from '@/lib/auth';
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const comments = db.prepare(`
+    const comments = (await db.execute({ sql: `
       SELECT sc.*, u.username, u.display_name, u.avatar
       FROM story_comments sc
       JOIN users u ON sc.user_id = u.id
       WHERE sc.story_id = ?
       ORDER BY sc.created_at DESC
-    `).all(id);
+    `, args: [id] })).rows;
 
     return NextResponse.json({ comments });
   } catch {
@@ -29,24 +29,24 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const { text } = await req.json();
     if (!text?.trim()) return NextResponse.json({ error: 'Text required' }, { status: 400 });
 
-    const story = db.prepare('SELECT * FROM stories WHERE id = ?').get(id) as { user_id: string } | undefined;
+    const story = (await db.execute({ sql: 'SELECT * FROM stories WHERE id = ?', args: [id] })).rows[0] as any;
     if (!story) return NextResponse.json({ error: 'Story not found' }, { status: 404 });
 
     const commentId = uuidv4();
-    db.prepare('INSERT INTO story_comments (id, story_id, user_id, text) VALUES (?, ?, ?, ?)').run(commentId, id, userId, text);
-    db.prepare('UPDATE stories SET comments_count = comments_count + 1 WHERE id = ?').run(id);
+    await db.execute({ sql: 'INSERT INTO story_comments (id, story_id, user_id, text) VALUES (?, ?, ?, ?)', args: [commentId, id, userId, text] });
+    await db.execute({ sql: 'UPDATE stories SET comments_count = comments_count + 1 WHERE id = ?', args: [id] });
 
     if (story.user_id !== userId) {
       const notifId = uuidv4();
-      db.prepare('INSERT INTO notifications (id, user_id, actor_id, type, story_id) VALUES (?, ?, ?, ?, ?)').run(notifId, story.user_id, userId, 'story_comment', id);
+      await db.execute({ sql: 'INSERT INTO notifications (id, user_id, actor_id, type, story_id) VALUES (?, ?, ?, ?, ?)', args: [notifId, story.user_id, userId, 'story_comment', id] });
     }
 
-    const comment = db.prepare(`
+    const comment = (await db.execute({ sql: `
       SELECT sc.*, u.username, u.display_name, u.avatar
       FROM story_comments sc
       JOIN users u ON sc.user_id = u.id
       WHERE sc.id = ?
-    `).get(commentId);
+    `, args: [commentId] })).rows[0];
 
     return NextResponse.json({ comment });
   } catch {

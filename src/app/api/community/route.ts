@@ -12,14 +12,14 @@ export async function GET(req: Request) {
 
   if (!communityId) return NextResponse.json({ messages: [] });
 
-  const messages = db.prepare(`
+  const messages = (await db.execute({ sql: `
     SELECT cm.*, u.username, u.display_name, u.avatar
     FROM community_messages cm
     JOIN users u ON u.id = cm.user_id
     WHERE cm.community_id = ?
     ORDER BY cm.created_at ASC
     LIMIT 100
-  `).all(communityId);
+  `, args: [communityId] })).rows;
 
   return NextResponse.json({ messages });
 }
@@ -32,18 +32,18 @@ export async function POST(req: Request) {
   if (!text?.trim()) return NextResponse.json({ error: 'Text is required' }, { status: 400 });
   if (!community_id) return NextResponse.json({ error: 'community_id is required' }, { status: 400 });
 
-  const isMember = db.prepare('SELECT 1 FROM community_members WHERE community_id = ? AND user_id = ?').get(community_id, userId);
+  const isMember = (await db.execute({ sql: 'SELECT 1 FROM community_members WHERE community_id = ? AND user_id = ?', args: [community_id, userId] })).rows[0];
   if (!isMember) return NextResponse.json({ error: 'Not a member' }, { status: 403 });
 
   const id = uuidv4();
-  db.prepare('INSERT INTO community_messages (id, user_id, text, community_id) VALUES (?, ?, ?, ?)').run(id, userId, text.trim(), community_id);
+  await db.execute({ sql: 'INSERT INTO community_messages (id, user_id, text, community_id) VALUES (?, ?, ?, ?)', args: [id, userId, text.trim(), community_id] });
 
-  const message = db.prepare(`
+  const message = (await db.execute({ sql: `
     SELECT cm.*, u.username, u.display_name, u.avatar
     FROM community_messages cm
     JOIN users u ON u.id = cm.user_id
     WHERE cm.id = ?
-  `).get(id);
+  `, args: [id] })).rows[0];
 
   return NextResponse.json({ message });
 }

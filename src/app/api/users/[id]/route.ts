@@ -7,23 +7,23 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     const { id } = await params;
     const currentUserId = await getCurrentUserId();
 
-    const user = db.prepare('SELECT id, username, display_name, avatar, cover_photo, bio, wallet_address, created_at FROM users WHERE id = ?').get(id) as any;
+    const user = (await db.execute({ sql: 'SELECT id, username, display_name, avatar, cover_photo, bio, wallet_address, created_at FROM users WHERE id = ?', args: [id] })).rows[0] as any;
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const followers_count = (db.prepare('SELECT COUNT(*) as count FROM follows WHERE following_id = ?').get(id) as any).count;
-    const following_count = (db.prepare('SELECT COUNT(*) as count FROM follows WHERE follower_id = ?').get(id) as any).count;
-    const videos_count = (db.prepare('SELECT COUNT(*) as count FROM videos WHERE user_id = ?').get(id) as any).count;
-    const likes_count = (db.prepare('SELECT COUNT(*) as count FROM likes WHERE user_id = ?').get(id) as any).count;
-    const likes_received_count = (db.prepare('SELECT COUNT(*) as count FROM likes WHERE video_id IN (SELECT id FROM videos WHERE user_id = ?)').get(id) as any).count;
+    const followers_count = ((await db.execute({ sql: 'SELECT COUNT(*) as count FROM follows WHERE following_id = ?', args: [id] })).rows[0] as any).count;
+    const following_count = ((await db.execute({ sql: 'SELECT COUNT(*) as count FROM follows WHERE follower_id = ?', args: [id] })).rows[0] as any).count;
+    const videos_count = ((await db.execute({ sql: 'SELECT COUNT(*) as count FROM videos WHERE user_id = ?', args: [id] })).rows[0] as any).count;
+    const likes_count = ((await db.execute({ sql: 'SELECT COUNT(*) as count FROM likes WHERE user_id = ?', args: [id] })).rows[0] as any).count;
+    const likes_received_count = ((await db.execute({ sql: 'SELECT COUNT(*) as count FROM likes WHERE video_id IN (SELECT id FROM videos WHERE user_id = ?)', args: [id] })).rows[0] as any).count;
 
     const is_following = currentUserId
-      ? !!db.prepare('SELECT id FROM follows WHERE follower_id = ? AND following_id = ?').get(currentUserId, id)
+      ? !!(await db.execute({ sql: 'SELECT id FROM follows WHERE follower_id = ? AND following_id = ?', args: [currentUserId, id] })).rows[0]
       : false;
 
     const is_followed_by = currentUserId
-      ? !!db.prepare('SELECT id FROM follows WHERE follower_id = ? AND following_id = ?').get(id, currentUserId)
+      ? !!(await db.execute({ sql: 'SELECT id FROM follows WHERE follower_id = ? AND following_id = ?', args: [id, currentUserId] })).rows[0]
       : false;
 
     return NextResponse.json({
@@ -60,9 +60,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     }
 
     values.push(id);
-    db.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).run(...values);
+    await db.execute({ sql: `UPDATE users SET ${updates.join(', ')} WHERE id = ?`, args: values });
 
-    const user = db.prepare('SELECT id, username, display_name, avatar, cover_photo, bio, wallet_address, created_at FROM users WHERE id = ?').get(id) as any;
+    const user = (await db.execute({ sql: 'SELECT id, username, display_name, avatar, cover_photo, bio, wallet_address, created_at FROM users WHERE id = ?', args: [id] })).rows[0] as any;
 
     return NextResponse.json({ user });
   } catch {

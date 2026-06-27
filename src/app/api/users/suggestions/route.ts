@@ -12,21 +12,21 @@ export async function GET(req: Request) {
 
     let users;
     if (q?.trim()) {
-      users = db.prepare(`
+      users = (await db.execute({ sql: `
         SELECT id, username, display_name, avatar
         FROM users
         WHERE id != ? AND (username LIKE ? OR display_name LIKE ?)
         LIMIT 10
-      `).all(userId, `%${q.trim()}%`, `%${q.trim()}%`);
+      `, args: [userId, `%${q.trim()}%`, `%${q.trim()}%`] })).rows;
     } else {
-      users = db.prepare(`
+      users = (await db.execute({ sql: `
         SELECT id, username, display_name, avatar
         FROM users
         WHERE id != ?
         AND id NOT IN (SELECT following_id FROM follows WHERE follower_id = ?)
         ORDER BY RANDOM()
         LIMIT 20
-      `).all(userId, userId);
+      `, args: [userId, userId] })).rows;
     }
 
     return NextResponse.json({ suggestions: users, users });

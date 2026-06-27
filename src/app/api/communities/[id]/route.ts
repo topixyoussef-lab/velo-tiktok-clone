@@ -8,24 +8,24 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
   const { id } = await params;
 
-  const community = db.prepare(`
+  const community = (await db.execute({ sql: `
     SELECT c.*, u.username as creator_username,
       (SELECT COUNT(*) FROM community_members WHERE community_id = c.id) as member_count,
       (SELECT role FROM community_members WHERE community_id = c.id AND user_id = ?) as my_role
     FROM communities c
     JOIN users u ON u.id = c.created_by
     WHERE c.id = ?
-  `).get(userId, id) as any;
+  `, args: [userId, id] })).rows[0] as any;
 
   if (!community) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const members = db.prepare(`
+  const members = (await db.execute({ sql: `
     SELECT cm.*, u.username, u.display_name, u.avatar
     FROM community_members cm
     JOIN users u ON u.id = cm.user_id
     WHERE cm.community_id = ?
     ORDER BY cm.role, cm.joined_at
-  `).all(id);
+  `, args: [id] })).rows;
 
   return NextResponse.json({ community, members });
 }
@@ -36,15 +36,13 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
 
   const { id } = await params;
 
-  const community = db.prepare('SELECT * FROM communities WHERE id = ?').get(id) as any;
+  const community = (await db.execute({ sql: 'SELECT * FROM communities WHERE id = ?', args: [id] })).rows[0] as any;
   if (!community) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   if (community.created_by !== userId) return NextResponse.json({ error: 'Only the creator can delete' }, { status: 403 });
 
-  db.transaction(() => {
-    db.prepare('DELETE FROM community_messages WHERE community_id = ?').run(id);
-    db.prepare('DELETE FROM community_members WHERE community_id = ?').run(id);
-    db.prepare('DELETE FROM communities WHERE id = ?').run(id);
-  })();
+  await db.execute({ sql: 'DELETE FROM community_messages WHERE community_id = ?', args: [id] });
+  await db.execute({ sql: 'DELETE FROM community_members WHERE community_id = ?', args: [id] });
+  await db.execute({ sql: 'DELETE FROM communities WHERE id = ?', args: [id] });
 
   return NextResponse.json({ success: true });
 }

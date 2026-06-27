@@ -9,16 +9,16 @@ export async function GET() {
       return NextResponse.json({ notifications: [], unread_count: 0 });
     }
 
-    const notifications = db.prepare(`
+    const notifications = (await db.execute({ sql: `
       SELECT n.*, u.username AS actor_username, u.display_name AS actor_display_name, u.avatar AS actor_avatar
       FROM notifications n
       JOIN users u ON n.actor_id = u.id
       WHERE n.user_id = ?
       ORDER BY n.created_at DESC
       LIMIT 50
-    `).all(userId);
+    `, args: [userId] })).rows;
 
-    const unread_count = (db.prepare('SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND read = 0').get(userId) as any).count;
+    const unread_count = ((await db.execute({ sql: 'SELECT COUNT(*) as count FROM notifications WHERE user_id = ? AND read = 0', args: [userId] })).rows[0] as any).count;
 
     return NextResponse.json({ notifications, unread_count });
   } catch {

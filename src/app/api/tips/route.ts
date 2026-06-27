@@ -12,7 +12,7 @@ export async function POST(req: Request) {
     if (!to_user_id || !amount) return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
 
     const id = uuidv4();
-    db.prepare('INSERT INTO tips (id, from_user_id, to_user_id, video_id, amount, platform_amount, creator_amount, tx_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(id, userId, to_user_id, video_id || null, amount, platform_amount || '0', creator_amount || '0', tx_hash || '');
+    await db.execute({ sql: 'INSERT INTO tips (id, from_user_id, to_user_id, video_id, amount, platform_amount, creator_amount, tx_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', args: [id, userId, to_user_id, video_id || null, amount, platform_amount || '0', creator_amount || '0', tx_hash || ''] });
 
     return NextResponse.json({ tip: { id, amount } });
   } catch {
@@ -25,14 +25,14 @@ export async function GET(req: Request) {
     const userId = await getCurrentUserId();
     if (!userId) return NextResponse.json({ tips: [] });
 
-    const tips = db.prepare(`
+    const tips = (await db.execute({ sql: `
       SELECT t.*, u.username AS from_username, u.display_name AS from_display_name
       FROM tips t
       JOIN users u ON t.from_user_id = u.id
       WHERE t.to_user_id = ?
       ORDER BY t.created_at DESC
       LIMIT 50
-    `).all(userId);
+    `, args: [userId] })).rows;
 
     return NextResponse.json({ tips });
   } catch {

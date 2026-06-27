@@ -11,11 +11,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const { user_id } = await req.json();
   if (!user_id) return NextResponse.json({ error: 'user_id is required' }, { status: 400 });
 
-  const role = db.prepare('SELECT role FROM community_members WHERE community_id = ? AND user_id = ?').get(id, userId) as any;
+  const role = (await db.execute({ sql: 'SELECT role FROM community_members WHERE community_id = ? AND user_id = ?', args: [id, userId] })).rows[0] as any;
   if (!role || role.role !== 'admin') return NextResponse.json({ error: 'Only admins can add members' }, { status: 403 });
 
   try {
-    db.prepare('INSERT INTO community_members (id, community_id, user_id, role) VALUES (?, ?, ?, ?)').run(uuidv4(), id, user_id, 'member');
+    await db.execute({ sql: 'INSERT INTO community_members (id, community_id, user_id, role) VALUES (?, ?, ?, ?)', args: [uuidv4(), id, user_id, 'member'] });
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json({ error: 'Already a member' }, { status: 409 });
@@ -31,9 +31,9 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
   const memberId = url.searchParams.get('user_id');
   if (!memberId) return NextResponse.json({ error: 'user_id required' }, { status: 400 });
 
-  const role = db.prepare('SELECT role FROM community_members WHERE community_id = ? AND user_id = ?').get(id, userId) as any;
+  const role = (await db.execute({ sql: 'SELECT role FROM community_members WHERE community_id = ? AND user_id = ?', args: [id, userId] })).rows[0] as any;
   if (!role || role.role !== 'admin') return NextResponse.json({ error: 'Only admins can remove members' }, { status: 403 });
 
-  db.prepare('DELETE FROM community_members WHERE community_id = ? AND user_id = ?').run(id, memberId);
+  await db.execute({ sql: 'DELETE FROM community_members WHERE community_id = ? AND user_id = ?', args: [id, memberId] });
   return NextResponse.json({ success: true });
 }

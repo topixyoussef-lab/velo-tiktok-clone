@@ -9,7 +9,7 @@ export async function GET() {
       return NextResponse.json({ videos: [] });
     }
 
-    const videos = db.prepare(`
+    const videos = (await db.execute({ sql: `
       SELECT v.*, u.username, u.display_name, u.avatar, u.wallet_address
       FROM videos v
       JOIN users u ON v.user_id = u.id
@@ -17,16 +17,16 @@ export async function GET() {
         SELECT following_id FROM follows WHERE follower_id = ?
       )
       ORDER BY v.created_at DESC
-    `).all(currentUserId) as any[];
+    `, args: [currentUserId] })).rows as any[];
 
-    const enriched = videos.map(v => ({
+    const enriched = await Promise.all(videos.map(async (v) => ({
       ...v,
       is_own: false,
-      is_liked: !!db.prepare('SELECT id FROM likes WHERE user_id = ? AND video_id = ?').get(currentUserId, v.id),
-      is_saved: !!db.prepare('SELECT id FROM saved_videos WHERE user_id = ? AND video_id = ?').get(currentUserId, v.id),
+      is_liked: !!(await db.execute({ sql: 'SELECT id FROM likes WHERE user_id = ? AND video_id = ?', args: [currentUserId, v.id] })).rows[0],
+      is_saved: !!(await db.execute({ sql: 'SELECT id FROM saved_videos WHERE user_id = ? AND video_id = ?', args: [currentUserId, v.id] })).rows[0],
       is_following: true,
-      is_followed_by: !!db.prepare('SELECT id FROM follows WHERE follower_id = ? AND following_id = ?').get(v.user_id, currentUserId),
-    }));
+      is_followed_by: !!(await db.execute({ sql: 'SELECT id FROM follows WHERE follower_id = ? AND following_id = ?', args: [v.user_id, currentUserId] })).rows[0],
+    })));
 
     return NextResponse.json({ videos: enriched });
   } catch {

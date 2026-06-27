@@ -10,16 +10,16 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'All fields required' }, { status: 400 });
     }
 
-    const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username) as any;
+    const user = (await db.execute({ sql: 'SELECT * FROM users WHERE username = ?', args: [username] })).rows[0] as any;
     if (!user || !verifyPassword(password, user.password)) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
     if (country) {
-      db.prepare('UPDATE users SET country = ? WHERE id = ?').run(country, user.id);
+      await db.execute({ sql: 'UPDATE users SET country = ? WHERE id = ?', args: [country, user.id] });
     }
 
-    const sessionId = createSession(user.id);
+    const sessionId = await createSession(user.id);
 
     const res = NextResponse.json({ user: { id: user.id, username: user.username, display_name: user.display_name } });
     res.cookies.set('session_id', sessionId, { httpOnly: true, path: '/', maxAge: 60 * 60 * 24 * 7 });
