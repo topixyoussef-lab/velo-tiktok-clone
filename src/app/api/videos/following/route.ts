@@ -9,26 +9,23 @@ export async function GET() {
       return NextResponse.json({ videos: [] });
     }
 
-    const videos = (await db.execute({ sql: `
-      SELECT v.*, u.username, u.display_name, u.avatar, u.wallet_address
+    const uid = currentUserId.replace(/'/g, "''");
+    const rows = (await db.execute({ sql: `
+      SELECT v.*, u.username, u.display_name, u.avatar, u.wallet_address,
+        FALSE AS is_own,
+        EXISTS(SELECT 1 FROM likes WHERE user_id = '${uid}' AND video_id = v.id) AS is_liked,
+        EXISTS(SELECT 1 FROM saved_videos WHERE user_id = '${uid}' AND video_id = v.id) AS is_saved,
+        TRUE AS is_following,
+        EXISTS(SELECT 1 FROM follows WHERE follower_id = v.user_id AND following_id = '${uid}') AS is_followed_by
       FROM videos v
       JOIN users u ON v.user_id = u.id
       WHERE v.user_id IN (
-        SELECT following_id FROM follows WHERE follower_id = ?
+        SELECT following_id FROM follows WHERE follower_id = '${uid}'
       )
       ORDER BY v.created_at DESC
-    `, args: [currentUserId] })).rows as any[];
+    ` })).rows as any[];
 
-    const enriched = await Promise.all(videos.map(async (v) => ({
-      ...v,
-      is_own: false,
-      is_liked: !!(await db.execute({ sql: 'SELECT id FROM likes WHERE user_id = ? AND video_id = ?', args: [currentUserId, v.id] })).rows[0],
-      is_saved: !!(await db.execute({ sql: 'SELECT id FROM saved_videos WHERE user_id = ? AND video_id = ?', args: [currentUserId, v.id] })).rows[0],
-      is_following: true,
-      is_followed_by: !!(await db.execute({ sql: 'SELECT id FROM follows WHERE follower_id = ? AND following_id = ?', args: [v.user_id, currentUserId] })).rows[0],
-    })));
-
-    return NextResponse.json({ videos: enriched });
+    return NextResponse.json({ videos: rows });
   } catch {
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }

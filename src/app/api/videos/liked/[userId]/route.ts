@@ -6,32 +6,23 @@ export async function GET(req: Request, { params }: { params: Promise<{ userId: 
   try {
     const { userId } = await params;
     const currentUserId = await getCurrentUserId();
+    const uid = (currentUserId || '').replace(/'/g, "''");
 
-    const videos = (await db.execute({ sql: `
-      SELECT v.*, u.username, u.display_name, u.avatar, u.wallet_address
+    const rows = (await db.execute({ sql: `
+      SELECT v.*, u.username, u.display_name, u.avatar, u.wallet_address,
+        v.user_id = '${uid}' AS is_own,
+        TRUE AS is_liked,
+        EXISTS(SELECT 1 FROM saved_videos WHERE user_id = '${uid}' AND video_id = v.id) AS is_saved,
+        EXISTS(SELECT 1 FROM follows WHERE follower_id = '${uid}' AND following_id = v.user_id) AS is_following,
+        EXISTS(SELECT 1 FROM follows WHERE follower_id = v.user_id AND following_id = '${uid}') AS is_followed_by
       FROM videos v
       JOIN users u ON v.user_id = u.id
       JOIN likes l ON l.video_id = v.id
-      WHERE l.user_id = ?
+      WHERE l.user_id = '${userId.replace(/'/g, "''")}'
       ORDER BY l.created_at DESC
-    `, args: [userId] })).rows as any[];
+    ` })).rows as any[];
 
-    const enriched = await Promise.all(videos.map(async (v) => ({
-      ...v,
-      is_own: currentUserId === v.user_id,
-      is_liked: true,
-      is_saved: currentUserId
-        ? !!(await db.execute({ sql: 'SELECT id FROM saved_videos WHERE user_id = ? AND video_id = ?', args: [currentUserId, v.id] })).rows[0]
-        : false,
-      is_following: currentUserId
-        ? !!(await db.execute({ sql: 'SELECT id FROM follows WHERE follower_id = ? AND following_id = ?', args: [currentUserId, v.user_id] })).rows[0]
-        : false,
-      is_followed_by: currentUserId
-        ? !!(await db.execute({ sql: 'SELECT id FROM follows WHERE follower_id = ? AND following_id = ?', args: [v.user_id, currentUserId] })).rows[0]
-        : false,
-    })));
-
-    return NextResponse.json({ videos: enriched });
+    return NextResponse.json({ videos: rows });
   } catch {
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }

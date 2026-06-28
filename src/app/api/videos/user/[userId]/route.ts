@@ -6,26 +6,19 @@ export async function GET(req: Request, { params }: { params: Promise<{ userId: 
   try {
     const { userId } = await params;
     const currentUserId = await getCurrentUserId();
+    const uid = (currentUserId || '').replace(/'/g, "''");
 
-    const videos = (await db.execute({ sql: `
-      SELECT v.*, u.username, u.display_name, u.avatar, u.wallet_address
+    const rows = (await db.execute({ sql: `
+      SELECT v.*, u.username, u.display_name, u.avatar, u.wallet_address,
+        EXISTS(SELECT 1 FROM likes WHERE user_id = '${uid}' AND video_id = v.id) AS is_liked,
+        EXISTS(SELECT 1 FROM saved_videos WHERE user_id = '${uid}' AND video_id = v.id) AS is_saved
       FROM videos v
       JOIN users u ON v.user_id = u.id
-      WHERE v.user_id = ?
+      WHERE v.user_id = '${userId.replace(/'/g, "''")}'
       ORDER BY v.created_at DESC
-    `, args: [userId] })).rows as any[];
+    ` })).rows as any[];
 
-    const enriched = await Promise.all(videos.map(async (v) => ({
-      ...v,
-      is_liked: currentUserId
-        ? !!(await db.execute({ sql: 'SELECT id FROM likes WHERE user_id = ? AND video_id = ?', args: [currentUserId, v.id] })).rows[0]
-        : false,
-      is_saved: currentUserId
-        ? !!(await db.execute({ sql: 'SELECT id FROM saved_videos WHERE user_id = ? AND video_id = ?', args: [currentUserId, v.id] })).rows[0]
-        : false,
-    })));
-
-    return NextResponse.json({ videos: enriched });
+    return NextResponse.json({ videos: rows });
   } catch {
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
