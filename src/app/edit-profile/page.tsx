@@ -41,8 +41,12 @@ export default function EditProfilePage() {
       if (res.ok) {
         if (type === 'avatar') setAvatar(data.url);
         else setCoverPhoto(data.url);
+      } else {
+        alert(data.error || 'Upload failed');
       }
-    } catch {}
+    } catch (e) {
+      alert('Upload error: ' + (e instanceof Error ? e.message : 'Unknown'));
+    }
     setUploading(null);
   };
 

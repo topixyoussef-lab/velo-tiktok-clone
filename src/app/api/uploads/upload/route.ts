@@ -3,6 +3,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { getCurrentUserId } from '@/lib/auth';
 import { uploadToSupabase } from '@/lib/upload';
 
+export async function GET() {
+  return NextResponse.json({ ok: true });
+}
+
 export async function POST(req: Request) {
   try {
     const userId = await getCurrentUserId();
@@ -17,7 +21,8 @@ export async function POST(req: Request) {
     const url = await uploadToSupabase(buffer, { bucket: 'images', contentType: file.type });
 
     return NextResponse.json({ url });
-  } catch {
-    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+  } catch (e: any) {
+    console.error('UPLOAD ERROR:', e?.message || e?.toString() || 'Unknown');
+    return NextResponse.json({ error: e?.message || 'Server error' }, { status: 500 });
   }
 }
