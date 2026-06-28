@@ -15,12 +15,6 @@ function getSupabase() {
 
 export { getSupabase };
 
-function getConfig() {
-  const projectRef = process.env.SUPABASE_PROJECT_REF;
-  const accessToken = process.env.SUPABASE_ACCESS_TOKEN;
-  return { projectRef, accessToken };
-}
-
 const SQLITE_TO_PG: [RegExp, string][] = [
   [/MAX\(0,\s*([^)]+?)\s*-\s*1\)/gi, 'GREATEST(0, $1 - 1)'],
   [/datetime\('now',\s*'([^']+)'\)/gi, "NOW() - INTERVAL '$1'"],
@@ -29,11 +23,8 @@ const SQLITE_TO_PG: [RegExp, string][] = [
 ];
 
 async function executeQuery({ sql, args }: { sql: string; args?: any[] }) {
-  const { projectRef, accessToken } = getConfig();
-  if (!projectRef || !accessToken) {
-    // Fallback to supabase-js for basic CRUD (for build time only)
-    return { rows: [] };
-  }
+  const supabase = getSupabase();
+  if (!supabase) return { rows: [] };
 
   let query = sql;
 
@@ -52,25 +43,19 @@ async function executeQuery({ sql, args }: { sql: string; args?: any[] }) {
     query = query.replace(pattern, replacement);
   }
 
-  const response = await fetch(
-    `https://api.supabase.com/v1/projects/${projectRef}/database/query`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ query }),
-    }
-  );
+  const trimmed = query.trim().toUpperCase();
+  const isSelect = trimmed.startsWith('SELECT') || trimmed.startsWith('WITH');
+  const isReturning = trimmed.includes('RETURNING');
 
-  if (!response.ok) {
-    const err = await response.text();
-    throw new Error(`DB error: ${err}`);
+  if (isSelect || isReturning) {
+    const { data, error } = await supabase.rpc('exec_sql', { sql: query });
+    if (error) throw new Error(`DB error: ${error.message}`);
+    return { rows: Array.isArray(data) ? data : [] };
+  } else {
+    const { error } = await supabase.rpc('exec_dml', { sql: query });
+    if (error) throw new Error(`DB error: ${error.message}`);
+    return { rows: [] };
   }
-
-  const data = await response.json();
-  return { rows: Array.isArray(data) ? data : [] };
 }
 
 export default { execute: executeQuery };
