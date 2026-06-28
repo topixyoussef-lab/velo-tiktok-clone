@@ -10,14 +10,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { video_id, text } = await req.json();
+    const { video_id, text, parent_id } = await req.json();
 
     if (!text || !text.trim()) {
       return NextResponse.json({ error: 'Comment text required' }, { status: 400 });
     }
 
     const id = uuidv4();
-    await db.execute({ sql: 'INSERT INTO comments (id, user_id, video_id, text) VALUES (?, ?, ?, ?)', args: [id, userId, video_id, text] });
+    await db.execute({ sql: 'INSERT INTO comments (id, user_id, video_id, text, parent_id) VALUES (?, ?, ?, ?, ?)', args: [id, userId, video_id, text, parent_id || null] });
     await db.execute({ sql: 'UPDATE videos SET comments_count = comments_count + 1 WHERE id = ?', args: [video_id] });
 
     const video = (await db.execute({ sql: 'SELECT user_id FROM videos WHERE id = ?', args: [video_id] })).rows[0] as any;

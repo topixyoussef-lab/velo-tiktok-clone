@@ -36,7 +36,7 @@ export default function BottomNav() {
   const isActive = (path: string) => pathname === path ? 'text-white' : 'text-[var(--text-secondary)]';
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-[var(--bg-app)]/90 backdrop-blur-md border-t border-[var(--border-color)]">
+    <nav className="fixed bottom-0 left-0 right-0 z-[100] bg-[var(--bg-app)]/95 backdrop-blur-md border-t border-[var(--border-color)]">
       <div className="flex items-center justify-around h-14">
         <Link href="/" className={`flex flex-col items-center gap-0.5 ${isActive('/')}`}>
           <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">

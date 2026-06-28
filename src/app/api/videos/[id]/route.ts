@@ -33,13 +33,15 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       ? !!(await db.execute({ sql: 'SELECT id FROM follows WHERE follower_id = ? AND following_id = ?', args: [video.user_id, currentUserId] })).rows[0]
       : false;
 
+    const uid = currentUserId || '';
     const comments = (await db.execute({ sql: `
-      SELECT c.*, u.username, u.display_name, u.avatar
+      SELECT c.*, u.username, u.display_name, u.avatar,
+        ${uid ? `EXISTS(SELECT 1 FROM comment_likes WHERE comment_id = c.id AND user_id = '${uid.replace(/'/g, "''")}')` : 'false'} AS is_liked
       FROM comments c
       JOIN users u ON c.user_id = u.id
-      WHERE c.video_id = ?
-      ORDER BY c.created_at DESC
-    `, args: [id] })).rows;
+      WHERE c.video_id = '${id.replace(/'/g, "''")}'
+      ORDER BY c.created_at ASC
+    ` })).rows;
 
     return NextResponse.json({ video, comments });
   } catch {

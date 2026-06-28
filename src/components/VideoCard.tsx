@@ -118,12 +118,20 @@ export default function VideoCard({ video }: Props) {
     }
   };
 
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [replyTo, setReplyTo] = useState<{ id: string; username: string } | null>(null);
+
   const toggleComments = async () => {
     if (!showComments) {
       try {
-        const res = await fetch(`/api/videos/${video.id}`);
-        const data = await res.json();
+        const [videoRes, meRes] = await Promise.all([
+          fetch(`/api/videos/${video.id}`),
+          fetch('/api/auth/me'),
+        ]);
+        const data = await videoRes.json();
         setComments(data.comments || []);
+        const me = await meRes.json();
+        if (me.user) setCurrentUserId(me.user.id);
       } catch {}
     }
     setShowComments(!showComments);
@@ -133,21 +141,48 @@ export default function VideoCard({ video }: Props) {
     e.preventDefault();
     if (!commentText.trim()) return;
     try {
+      const body: any = { video_id: video.id, text: commentText };
+      if (replyTo) body.parent_id = replyTo.id;
       const res = await fetch('/api/comments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ video_id: video.id, text: commentText }),
+        body: JSON.stringify(body),
       });
       if (res.ok) {
         const data = await res.json();
         setComments(prev => [data.comment, ...prev]);
         setCommentsCount(prev => prev + 1);
         setCommentText('');
+        setReplyTo(null);
       } else if (res.status === 401) {
         window.location.href = '/login';
       } else {
         const err = await res.json().catch(() => ({}));
         alert(err.error || 'Error adding comment');
+      }
+    } catch {}
+  };
+
+  const deleteComment = async (commentId: string) => {
+    try {
+      const res = await fetch(`/api/comments/${commentId}`, { method: 'DELETE' });
+      if (res.ok) {
+        setComments(prev => prev.filter(c => c.id !== commentId));
+        setCommentsCount(prev => Math.max(0, prev - 1));
+      }
+    } catch {}
+  };
+
+  const toggleCommentLike = async (commentId: string) => {
+    try {
+      const res = await fetch(`/api/comments/${commentId}/like`, { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        setComments(prev => prev.map(c =>
+          c.id === commentId
+            ? { ...c, is_liked: data.liked, likes_count: c.likes_count + (data.liked ? 1 : -1) }
+            : c
+        ));
       }
     } catch {}
   };
@@ -417,9 +452,9 @@ export default function VideoCard({ video }: Props) {
       </div>
 
       {showComments && (
-        <div className="absolute inset-0 bg-black/80 z-10 flex flex-col">
+        <div className="absolute inset-0 bg-black/90 z-10 flex flex-col">
           <div className="flex items-center justify-between p-4 border-b border-white/20">
-            <h3 className="text-white font-semibold">Comments</h3>
+            <h3 className="text-white font-semibold">Comments ({commentsCount})</h3>
             <button onClick={() => setShowComments(false)} className="text-white/70">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -431,40 +466,108 @@ export default function VideoCard({ video }: Props) {
             {comments.length === 0 ? (
               <p className="text-white/50 text-center mt-8">No comments yet</p>
             ) : (
-              comments.map(c => (
-                <div key={c.id} className="flex gap-2">
-                  <div className="w-8 h-8 rounded-full bg-purple-500 overflow-hidden flex-shrink-0">
-                    {c.avatar ? (
-                      <img src={c.avatar} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-white text-xs font-bold">
-                        {c.display_name?.[0]?.toUpperCase() || 'U'}
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <p className="text-white text-sm">
-                      <span className="font-semibold">@{c.username}</span> {c.text}
-                    </p>
-                    <p className="text-white/40 text-xs">{new Date(c.created_at).toLocaleDateString()}</p>
-                  </div>
-                </div>
-              ))
+              (() => {
+                const parents = comments.filter(c => !c.parent_id);
+                return parents.map(pc => {
+                  const replies = comments.filter(c => c.parent_id === pc.id);
+                  return (
+                    <div key={pc.id}>
+                      <CommentItem
+                        comment={pc}
+                        currentUserId={currentUserId}
+                        onDelete={deleteComment}
+                        onLike={toggleCommentLike}
+                        onReply={(id, username) => { setReplyTo({ id, username }); setCommentText(''); }}
+                      />
+                      {replies.length > 0 && (
+                        <div className="ml-10 mt-1 space-y-1 border-l-2 border-white/10 pl-3">
+                          {replies.map(r => (
+                            <CommentItem
+                              key={r.id}
+                              comment={r}
+                              currentUserId={currentUserId}
+                              onDelete={deleteComment}
+                              onLike={toggleCommentLike}
+                              onReply={(id, username) => { setReplyTo({ id, username }); setCommentText(''); }}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                });
+              })()
             )}
           </div>
 
-          <form onSubmit={addComment} className="p-4 border-t border-white/20 flex gap-2">
-            <input
-              type="text"
-              value={commentText}
-              onChange={e => setCommentText(e.target.value)}
-              placeholder="Add comment..."
-              className="flex-1 bg-white/10 text-white px-3 py-2 rounded-full text-sm outline-none"
-            />
-            <button type="submit" className="text-purple-400 font-semibold text-sm">Post</button>
+          <form onSubmit={addComment} className="p-4 border-t border-white/20 flex gap-2 flex-col">
+            {replyTo && (
+              <div className="flex items-center gap-2 text-xs text-purple-400">
+                <span>Replying to @{replyTo.username}</span>
+                <button type="button" onClick={() => setReplyTo(null)} className="text-white/40 hover:text-white">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            )}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={commentText}
+                onChange={e => setCommentText(e.target.value)}
+                placeholder={replyTo ? `Reply to @${replyTo.username}...` : 'Add comment...'}
+                className="flex-1 bg-white/10 text-white px-3 py-2 rounded-full text-sm outline-none"
+              />
+              <button type="submit" className="text-purple-400 font-semibold text-sm">Post</button>
+            </div>
           </form>
         </div>
       )}
+    </div>
+  );
+}
+
+function CommentItem({ comment, currentUserId, onDelete, onLike, onReply }: {
+  comment: any;
+  currentUserId: string | null;
+  onDelete: (id: string) => void;
+  onLike: (id: string) => void;
+  onReply: (id: string, username: string) => void;
+}) {
+  return (
+    <div className="flex gap-2 group">
+      <div className="w-8 h-8 rounded-full bg-purple-500 overflow-hidden flex-shrink-0 mt-0.5">
+        {comment.avatar ? (
+          <img src={comment.avatar} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-white text-xs font-bold">
+            {comment.display_name?.[0]?.toUpperCase() || 'U'}
+          </div>
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-white text-sm break-words">
+          <span className="font-semibold">@{comment.username}</span> {comment.text}
+        </p>
+        <div className="flex items-center gap-3 mt-0.5">
+          <span className="text-white/30 text-[10px]">{new Date(comment.created_at).toLocaleDateString()}</span>
+          <button onClick={() => onLike(comment.id)} className="flex items-center gap-0.5 text-white/40 hover:text-pink-400 text-[10px] transition-colors">
+            <svg className="w-3 h-3" fill={comment.is_liked ? '#ec4899' : 'none'} stroke={comment.is_liked ? '#ec4899' : 'currentColor'} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+            </svg>
+            {comment.likes_count > 0 && <span>{comment.likes_count}</span>}
+          </button>
+          <button onClick={() => onReply(comment.id, comment.username)} className="text-white/40 hover:text-purple-400 text-[10px] transition-colors">Reply</button>
+          {currentUserId === comment.user_id && (
+            <button onClick={() => onDelete(comment.id)} className="text-white/40 hover:text-red-400 text-[10px] ml-auto transition-colors">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

@@ -48,11 +48,11 @@ async function executeQuery({ sql, args }: { sql: string; args?: any[] }) {
   const isReturning = trimmed.includes('RETURNING');
 
   if (isSelect || isReturning) {
-    const { data, error } = await supabase.rpc('exec_sql', { sql: query });
+    const { data, error } = await (supabase.rpc as any)('exec_sql', { sql: query });
     if (error) throw new Error(`DB error: ${error.message}`);
     return { rows: Array.isArray(data) ? data : [] };
   } else {
-    const { error } = await supabase.rpc('exec_dml', { sql: query });
+    const { error } = await (supabase.rpc as any)('exec_dml', { sql: query });
     if (error) throw new Error(`DB error: ${error.message}`);
     return { rows: [] };
   }

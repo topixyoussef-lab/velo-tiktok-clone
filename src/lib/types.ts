@@ -70,10 +70,14 @@ export interface Comment {
   user_id: string;
   video_id: string;
   text: string;
+  parent_id: string | null;
+  likes_count: number;
   created_at: string;
   username: string;
   display_name: string;
   avatar: string;
+  is_liked?: boolean;
+  replies?: Comment[];
 }
 
 export interface Story {
@@ -104,10 +108,14 @@ export interface StoryComment {
   story_id: string;
   user_id: string;
   text: string;
+  parent_id: string | null;
+  likes_count: number;
   created_at: string;
   username: string;
   display_name: string;
   avatar: string;
+  is_liked?: boolean;
+  replies?: StoryComment[];
 }
 
 export interface Tip {
