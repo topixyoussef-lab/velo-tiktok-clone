@@ -33,6 +33,6 @@ export async function GET() {
     return NextResponse.json({ videos: enriched });
   } catch (e: any) {
     console.error('FEED ERROR:', e?.message || e?.toString() || 'Unknown error');
-    return NextResponse.json({ error: 'Server error', detail: e?.message || String(e) }, { status: 500 });
+    return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }
