@@ -32,14 +32,14 @@ export default function FriendsPage() {
         fetch('/api/videos/friends')
           .then(res => res.json())
           .then(res => {
-            setVideos(res.videos || []);
+            if (Array.isArray(res.videos)) setVideos(res.videos);
             setLoading(false);
           })
           .catch(() => setLoading(false));
 
         fetch('/api/stories')
           .then(res => res.json())
-          .then(res => setStories(res.stories || []))
+          .then(res => { if (Array.isArray(res.stories)) setStories(res.stories); })
           .catch(() => {});
       });
   }, [router]);
@@ -48,7 +48,7 @@ export default function FriendsPage() {
     setLoading(true);
     fetchData();
 
-    pollRef.current = setInterval(fetchData, 3000);
+    pollRef.current = setInterval(fetchData, 15000);
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };

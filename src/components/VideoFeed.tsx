@@ -26,7 +26,7 @@ export default function VideoFeed() {
     fetch(endpoint)
       .then(res => res.json())
       .then(data => {
-        setVideos(data.videos || []);
+        if (Array.isArray(data.videos)) setVideos(data.videos);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -47,7 +47,7 @@ export default function VideoFeed() {
     fetchVideos(tab);
 
     if (pollRef.current) clearInterval(pollRef.current);
-    pollRef.current = setInterval(() => fetchVideos(tab), 3000);
+    pollRef.current = setInterval(() => fetchVideos(tab), 15000);
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };

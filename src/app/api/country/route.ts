@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 const IPWHOIS = 'https://ipwhois.app/json';
-const IPAPI = 'http://ip-api.com/json';
+const IPAPI = 'https://ip-api.com/json';
 
 function getClientIP(req: Request): string {
   const fwd = req.headers.get('x-forwarded-for');
