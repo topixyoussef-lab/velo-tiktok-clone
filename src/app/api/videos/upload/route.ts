@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 import db from '@/lib/db';
 import { getCurrentUserId } from '@/lib/auth';
-import { uploadToCloudinary } from '@/lib/upload';
+import { uploadToSupabase } from '@/lib/upload';
 
-export const maxDuration = 120;
+export const maxDuration = 60;
 
 export async function POST(req: Request) {
   try {
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
 
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    const videoUrl = await uploadToCloudinary(buffer, { resource_type: 'video' });
+    const videoUrl = await uploadToSupabase(buffer, { bucket: 'videos', contentType: file.type });
 
     const videoId = uuidv4();
 

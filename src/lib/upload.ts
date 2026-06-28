@@ -1,37 +1,58 @@
-import { v2 as cloudinary } from 'cloudinary';
+import { v4 as uuidv4 } from 'uuid';
+import { getSupabase } from './db';
 
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
-
-export async function uploadToCloudinary(
+export async function uploadToSupabase(
   buffer: Buffer,
-  options: { folder?: string; resource_type?: 'video' | 'image' } = {}
+  options: { bucket?: string; folder?: string; contentType?: string } = {}
 ): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(
-      {
-        folder: options.folder || 'velo',
-        resource_type: options.resource_type || 'auto',
-      },
-      (error, result) => {
-        if (error) reject(error);
-        else resolve(result!.secure_url);
-      }
-    );
-    stream.end(buffer);
-  });
+  const supabase = getSupabase();
+  if (!supabase) throw new Error('Supabase not configured');
+
+  const bucket = options.bucket || 'videos';
+  const folder = options.folder || '';
+  const ext = options.contentType?.split('/')[1] || 'bin';
+  const fileName = `${uuidv4()}.${ext}`;
+  const filePath = folder ? `${folder}/${fileName}` : fileName;
+
+  const { error } = await supabase.storage
+    .from(bucket)
+    .upload(filePath, buffer, {
+      contentType: options.contentType || 'application/octet-stream',
+      cacheControl: '3600',
+      upsert: false,
+    });
+
+  if (error) throw new Error(error.message);
+
+  const { data } = supabase.storage.from(bucket).getPublicUrl(filePath);
+  return data.publicUrl;
 }
 
-export async function deleteFromCloudinary(publicId: string): Promise<void> {
-  await cloudinary.uploader.destroy(publicId);
+export async function deleteFromStorage(url: string): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error('Supabase not configured');
+
+  const path = extractPath(url);
+  if (!path) return;
+
+  const { error } = await supabase.storage.from('videos').remove([path]);
+  if (error) throw new Error(error.message);
 }
 
-export function getPublicIdFromUrl(url: string): string {
+export async function deleteFromBucket(url: string, bucket: string = 'videos'): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error('Supabase not configured');
+
+  const path = extractPath(url);
+  if (!path) return;
+
+  const { error } = await supabase.storage.from(bucket).remove([path]);
+  if (error) throw new Error(error.message);
+}
+
+function extractPath(url: string): string {
   const parts = url.split('/');
-  const folderIndex = parts.indexOf('velo');
-  if (folderIndex === -1) return parts.pop()?.split('.')[0] || '';
-  return parts.slice(folderIndex).join('/').split('.')[0];
+  const bucketIndex = parts.indexOf('storage/v1/object/public');
+  if (bucketIndex === -1) return '';
+  return parts.slice(bucketIndex + 4).join('/');
 }

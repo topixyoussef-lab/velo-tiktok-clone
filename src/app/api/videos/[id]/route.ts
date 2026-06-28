@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { getCurrentUserId } from '@/lib/auth';
-import { deleteFromCloudinary, getPublicIdFromUrl } from '@/lib/upload';
+import { deleteFromStorage } from '@/lib/upload';
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -57,8 +57,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     if (!video) return NextResponse.json({ error: 'Video not found or not yours' }, { status: 404 });
 
     try {
-      const publicId = getPublicIdFromUrl(video.file_path || '');
-      if (publicId) await deleteFromCloudinary(publicId);
+      await deleteFromStorage(video.file_path || '');
     } catch {}
 
     await db.execute({ sql: 'DELETE FROM likes WHERE video_id = ?', args: [id] });

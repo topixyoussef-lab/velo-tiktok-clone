@@ -1,6 +1,8 @@
 import { getCurrentUserId } from '@/lib/auth';
 import db from '@/lib/db';
 
+export const maxDuration = 60;
+
 export async function GET(req: Request) {
   const userId = await getCurrentUserId();
   if (!userId) return new Response('Unauthorized', { status: 401 });

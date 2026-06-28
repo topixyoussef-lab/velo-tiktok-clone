@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 import db from '@/lib/db';
 import { getCurrentUserId } from '@/lib/auth';
-import { uploadToCloudinary } from '@/lib/upload';
+import { uploadToSupabase } from '@/lib/upload';
 
 export async function POST(req: Request) {
   try {
@@ -18,7 +18,7 @@ export async function POST(req: Request) {
 
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    const filePath = await uploadToCloudinary(buffer, { resource_type: 'video' });
+    const filePath = await uploadToSupabase(buffer, { bucket: 'stories', contentType: file.type });
 
     const storyId = uuidv4();
     await db.execute({ sql: 'INSERT INTO stories (id, user_id, file_path) VALUES (?, ?, ?)', args: [storyId, userId, filePath] });

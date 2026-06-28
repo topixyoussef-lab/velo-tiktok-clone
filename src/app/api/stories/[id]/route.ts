@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { getCurrentUserId } from '@/lib/auth';
-import { deleteFromCloudinary, getPublicIdFromUrl } from '@/lib/upload';
+import { deleteFromBucket } from '@/lib/upload';
 
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -14,8 +14,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     if (story.user_id !== userId) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     try {
-      const publicId = getPublicIdFromUrl(story.file_path);
-      if (publicId) await deleteFromCloudinary(publicId);
+      await deleteFromBucket(story.file_path, 'stories');
     } catch {}
 
     await db.execute({ sql: 'DELETE FROM story_views WHERE story_id = ?', args: [id] });
