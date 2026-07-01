@@ -1,0 +1,28 @@
+{
+  "host": "https://velo-two-roan.vercel.app",
+  "startUrl": "/",
+  "name": "VELO",
+  "launcherName": "VELO",
+  "packageId": "com.velo.app",
+  "appVersion": "1.0.0",
+  "appVersionCode": 1,
+  "display": "standalone",
+  "orientation": "portrait",
+  "backgroundColor": "#000000",
+  "themeColor": "#000000",
+  "navigationColor": "#000000",
+  "iconUrl": "https://velo-two-roan.vercel.app/icons/icon-512x512.png",
+  "maskableIconUrl": "https://velo-two-roan.vercel.app/icons/icon-512x512.png",
+  "webManifestUrl": "https://velo-two-roan.vercel.app/manifest.json",
+  "signingKey": {
+    "path": "./android.keystore",
+    "alias": "velo-key"
+  },
+  "fallbackType": "customtabs",
+  "enableNotifications": false,
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "features": {
+    "locationDelegation": { "enabled": true }
+  }
+}

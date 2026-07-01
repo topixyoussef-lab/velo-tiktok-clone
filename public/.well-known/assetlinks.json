@@ -1,0 +1,8 @@
+﻿[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.velo.app",
+    "sha256_cert_fingerprints": ["F5:29:F4:12:B9:56:3D:E0:A1:4F:48:74:0D:30:37:10:84:9B:30:BF:2E:20:73:C0:A9:41:30:D5:38:2D:9C:05"]
+  }
+}]

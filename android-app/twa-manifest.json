@@ -1,0 +1,46 @@
+{
+  "packageId": "com.velo.app",
+  "host": "https://velo-two-roan.vercel.app",
+  "name": "VELO",
+  "launcherName": "VELO",
+  "display": "standalone",
+  "themeColor": "#000000",
+  "themeColorDark": "#000000",
+  "navigationColor": "#000000",
+  "navigationColorDark": "#000000",
+  "navigationDividerColor": "#000000",
+  "navigationDividerColorDark": "#000000",
+  "backgroundColor": "#000000",
+  "enableNotifications": false,
+  "startUrl": "/",
+  "iconUrl": "https://velo-two-roan.vercel.app/icons/icon-512x512.png",
+  "maskableIconUrl": "https://velo-two-roan.vercel.app/icons/icon-512x512.png",
+  "signingKey": {
+    "path": "C:\\Users\\PC\\Desktop\\New folder (14)\\tiktok-clone\\android-app\\android.keystore",
+    "alias": "velo-key"
+  },
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://velo-two-roan.vercel.app/manifest.json",
+  "fallbackType": "customtabs",
+  "features": {
+    "locationDelegation": {
+      "enabled": true
+    }
+  },
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "minSdkVersion": 21,
+  "orientation": "portrait",
+  "fingerprints": [],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": [],
+  "displayOverride": [],
+  "appVersion": "1.0.0"
+}
